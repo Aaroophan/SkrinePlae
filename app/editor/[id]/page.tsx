@@ -1,7 +1,7 @@
 "use client"
 
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { ScreenplayEditor } from "@/components/screenplay-editor"
+import { SmartScreenplayEditor } from "@/components/smart-screenplay-editor"
 
 interface EditorPageProps {
   params: { id: string }
@@ -18,7 +18,7 @@ export default function EditorPage({ params }: EditorPageProps) {
       </header>
 
       <div className="flex-1 overflow-hidden">
-        <ScreenplayEditor screenplayId={id} />
+        <SmartScreenplayEditor screenplayId={id} />
       </div>
     </div>
   )

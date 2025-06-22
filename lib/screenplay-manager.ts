@@ -7,11 +7,28 @@ export interface Scene {
   updatedAt: Date
 }
 
+export interface TitlePage {
+  title: string
+  author: string
+  basedOn?: string
+  contact?: string
+  draftDate?: string
+  revision?: string
+}
+
+export interface ProjectMetadata {
+  titlePage: TitlePage
+  format: "US_LETTER" | "A4"
+  fontSize: number
+  lineSpacing: number
+}
+
 export interface Screenplay {
   id: string
   title: string
   author: string
   scenes: Scene[]
+  metadata: ProjectMetadata
   createdAt: Date
   updatedAt: Date
 }
@@ -93,16 +110,39 @@ class ScreenplayManager {
     }
   }
 
-  public createScreenplay(title: string, author: string): Screenplay {
+  public createScreenplay(title: string, author: string, basedOn?: string): Screenplay {
     const screenplay: Screenplay = {
       id: Date.now().toString(),
       title,
       author,
       scenes: [],
+      metadata: {
+        titlePage: {
+          title,
+          author,
+          basedOn,
+          draftDate: new Date().toLocaleDateString(),
+          revision: "First Draft",
+        },
+        format: "US_LETTER",
+        fontSize: 12,
+        lineSpacing: 1.5,
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
+    // Auto-create first scene
+    const firstScene: Scene = {
+      id: Date.now().toString() + "_1",
+      title: "INT. LOCATION - DAY",
+      content: "",
+      sceneHeading: "INT. LOCATION - DAY",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    screenplay.scenes.push(firstScene)
     this.screenplays.push(screenplay)
     this.currentScreenplay = screenplay
     this.saveToStorage()
