@@ -1,180 +1,168 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Plus, Trash2, GripVertical } from "lucide-react"
-import ScreenplayManager, { type Scene } from "@/lib/screenplay-manager"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { ScreenplayBlock } from "./screenplay-block"
+import { ScreenplayToolbar } from "./screenplay-toolbar"
+import { FindReplaceDialog } from "./find-replace-dialog"
+import { ScreenplayStore } from "@/lib/screenplay-store"
+import { EditorState } from "@/lib/editor-state"
+import { BlockType, type ScreenplayBlock as ScreenplayBlockType } from "@/types/screenplay"
+import { detectBlockType, getNextBlockType } from "@/lib/screenplay-parser"
 
 interface ScreenplayEditorProps {
-  screenplayId: string
+  screenplay: any
 }
 
-export function ScreenplayEditor({ screenplayId }: ScreenplayEditorProps) {
-  const [scenes, setScenes] = useState<Scene[]>([])
-  const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
-  const [newSceneHeading, setNewSceneHeading] = useState("")
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const manager = ScreenplayManager.getInstance()
+export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
+  const [blocks, setBlocks] = useState<ScreenplayBlockType[]>(screenplay.blocks || [])
+  const [currentBlockId, setCurrentBlockId] = useState<string>("")
+  const [showFindReplace, setShowFindReplace] = useState(false)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const [editorState] = useState(() => EditorState.getInstance())
 
   useEffect(() => {
-    const screenplay = manager.setCurrentScreenplay(screenplayId)
-    if (screenplay) {
-      setScenes(screenplay.scenes)
-      if (screenplay.scenes.length > 0) {
-        setActiveSceneId(screenplay.scenes[0].id)
+    if (blocks.length === 0) {
+      // Initialize with a scene heading block
+      const initialBlock: ScreenplayBlockType = {
+        id: generateId(),
+        type: BlockType.SCENE_HEADING,
+        content: "",
+      }
+      setBlocks([initialBlock])
+      setCurrentBlockId(initialBlock.id)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Auto-save
+    const store = ScreenplayStore.getInstance()
+    store.updateScreenplay(screenplay.id, { blocks })
+  }, [blocks, screenplay.id])
+
+  const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36)
+
+  const updateBlock = useCallback((blockId: string, content: string) => {
+    setBlocks((prev) =>
+      prev.map((block) => {
+        if (block.id === blockId) {
+          const detectedType = detectBlockType(content, block.type)
+          return { ...block, content, type: detectedType }
+        }
+        return block
+      }),
+    )
+  }, [])
+
+  const handleEnter = useCallback(
+    (blockId: string, currentType: BlockType) => {
+      const blockIndex = blocks.findIndex((b) => b.id === blockId)
+      if (blockIndex === -1) return
+
+      const nextType = getNextBlockType(currentType, "enter")
+      const newBlock: ScreenplayBlockType = {
+        id: generateId(),
+        type: nextType,
+        content: "",
+      }
+
+      setBlocks((prev) => [...prev.slice(0, blockIndex + 1), newBlock, ...prev.slice(blockIndex + 1)])
+
+      setCurrentBlockId(newBlock.id)
+
+      // Focus the new block after state update
+      setTimeout(() => {
+        const newBlockElement = document.querySelector(`[data-block-id="${newBlock.id}"]`) as HTMLElement
+        if (newBlockElement) {
+          newBlockElement.focus()
+        }
+      }, 0)
+    },
+    [blocks],
+  )
+
+  const handleTab = useCallback((blockId: string, currentType: BlockType) => {
+    const nextType = getNextBlockType(currentType, "tab")
+    setBlocks((prev) => prev.map((block) => (block.id === blockId ? { ...block, type: nextType } : block)))
+  }, [])
+
+  const handleBackspace = useCallback(
+    (blockId: string, isEmpty: boolean) => {
+      if (!isEmpty) return
+
+      const blockIndex = blocks.findIndex((b) => b.id === blockId)
+      if (blockIndex <= 0) return // Don't delete the first block
+
+      // Remove current block and focus previous
+      const previousBlock = blocks[blockIndex - 1]
+      setBlocks((prev) => prev.filter((b) => b.id !== blockId))
+      setCurrentBlockId(previousBlock.id)
+
+      setTimeout(() => {
+        const prevBlockElement = document.querySelector(`[data-block-id="${previousBlock.id}"]`) as HTMLElement
+        if (prevBlockElement) {
+          prevBlockElement.focus()
+          // Move cursor to end
+          const range = document.createRange()
+          const selection = window.getSelection()
+          range.selectNodeContents(prevBlockElement)
+          range.collapse(false)
+          selection?.removeAllRanges()
+          selection?.addRange(range)
+        }
+      }, 0)
+    },
+    [blocks],
+  )
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case "f":
+          e.preventDefault()
+          setShowFindReplace(true)
+          break
+        case "z":
+          e.preventDefault()
+          // Handle undo/redo
+          break
       }
     }
-  }, [screenplayId])
+  }, [])
 
-  const addScene = () => {
-    if (!newSceneHeading.trim()) return
-
-    const scene = manager.addScene(newSceneHeading)
-    setScenes([...scenes, scene])
-    setActiveSceneId(scene.id)
-    setNewSceneHeading("")
-  }
-
-  const updateSceneContent = (sceneId: string, content: string) => {
-    manager.updateScene(sceneId, content)
-    setScenes(scenes.map((s) => (s.id === sceneId ? { ...s, content } : s)))
-  }
-
-  const deleteScene = (sceneId: string) => {
-    manager.deleteScene(sceneId)
-    const updatedScenes = scenes.filter((s) => s.id !== sceneId)
-    setScenes(updatedScenes)
-
-    if (activeSceneId === sceneId) {
-      setActiveSceneId(updatedScenes.length > 0 ? updatedScenes[0].id : null)
-    }
-  }
-
-  const activeScene = scenes.find((s) => s.id === activeSceneId)
-
-  const formatScreenplayText = (text: string) => {
-    return text
-      .split("\n")
-      .map((line, index) => {
-        const trimmed = line.trim()
-
-        // Scene headings (INT./EXT.)
-        if (trimmed.match(/^(INT\.|EXT\.|FADE IN:|FADE OUT:)/i)) {
-          return `<div key=${index} class="font-bold uppercase mb-4 mt-6">${trimmed}</div>`
-        }
-
-        // Character names (all caps, centered-ish)
-        if (trimmed.match(/^[A-Z][A-Z\s]+$/) && trimmed.length < 30) {
-          return `<div key=${index} class="font-bold uppercase text-center my-4">${trimmed}</div>`
-        }
-
-        // Parentheticals
-        if (trimmed.match(/^$$.+$$$/)) {
-          return `<div key=${index} class="text-center italic mb-2">${trimmed}</div>`
-        }
-
-        // Regular action/dialogue
-        return `<div key=${index} class="mb-2 leading-relaxed">${trimmed || "<br>"}</div>`
-      })
-      .join("")
-  }
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [handleKeyDown])
 
   return (
-    <div className="flex h-full">
-      {/* Scene Navigator */}
-      <div className="w-80 border-r bg-muted/30 p-4 overflow-y-auto">
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Scenes</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="EXT. LOCATION - DAY"
-              value={newSceneHeading}
-              onChange={(e) => setNewSceneHeading(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addScene()}
-              className="text-sm"
-            />
-            <Button onClick={addScene} size="sm">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+    <div className="flex flex-col h-screen">
+      <ScreenplayToolbar onFindReplace={() => setShowFindReplace(true)} />
 
-        <div className="space-y-2">
-          {scenes.map((scene, index) => (
-            <div
-              key={scene.id}
-              className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                activeSceneId === scene.id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-              }`}
-              onClick={() => setActiveSceneId(scene.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GripVertical className="w-4 h-4 opacity-50" />
-                  <div>
-                    <div className="font-medium text-sm">Scene {index + 1}</div>
-                    <div className="text-xs opacity-70 truncate">{scene.sceneHeading}</div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteScene(scene.id)
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Editor */}
-      <div className="flex-1 p-6">
-        {activeScene ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-4">
-              <h2 className="text-xl font-bold">{activeScene.sceneHeading}</h2>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 rounded-lg border p-8 min-h-[600px] font-mono text-sm leading-relaxed">
-              <Textarea
-                ref={textareaRef}
-                value={activeScene.content}
-                onChange={(e) => updateSceneContent(activeScene.id, e.target.value)}
-                placeholder="Start writing your scene here...
-
-Example:
-FADE IN:
-
-EXT. ROAD - DAY (MORNING)
-
-A sunny morning, leaves are blowing across the road due to the hot wind.
-
-RICKSHAW DRIVER, a poor thin old man with a rickshaw not in a very good condition is pedaling the rickshaw as hard as he can."
-                className="w-full min-h-[500px] border-none resize-none focus:ring-0 font-mono text-sm leading-relaxed bg-transparent"
-                style={{
-                  fontFamily: "Courier New, monospace",
-                  lineHeight: "1.6",
-                }}
+      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-4">
+        <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 shadow-xl min-h-full">
+          <div ref={editorRef} className="p-16 min-h-full" style={{ fontFamily: "Courier New, monospace" }}>
+            {blocks.map((block, index) => (
+              <ScreenplayBlock
+                key={block.id}
+                block={block}
+                isActive={currentBlockId === block.id}
+                onUpdate={updateBlock}
+                onEnter={handleEnter}
+                onTab={handleTab}
+                onBackspace={handleBackspace}
+                onFocus={() => setCurrentBlockId(block.id)}
               />
-            </div>
+            ))}
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">No Scene Selected</h3>
-              <p>Create a new scene or select an existing one to start writing.</p>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
+
+      <FindReplaceDialog
+        open={showFindReplace}
+        onOpenChange={setShowFindReplace}
+        blocks={blocks}
+        onUpdateBlocks={setBlocks}
+      />
     </div>
   )
 }
