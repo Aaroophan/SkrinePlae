@@ -1,323 +1,180 @@
-"use client";
+"use client"
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useScriptStore } from '@/lib/store';
-import { ScriptElement, ElementType } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Film, 
-  Plus, 
-  MessageSquare, 
-  User, 
-  MapPin,
-  ArrowRight,
-  Keyboard,
-  Clock
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Plus, Trash2, GripVertical } from "lucide-react"
+import ScreenplayManager, { type Scene } from "@/lib/screenplay-manager"
 
-interface ElementEditorProps {
-  element: ScriptElement;
-  index: number;
-  isActive: boolean;
-  onNext: () => void;
+interface ScreenplayEditorProps {
+  screenplayId: string
 }
 
-const ElementEditor: React.FC<ElementEditorProps> = ({ element, index, isActive, onNext }) => {
-  const { updateElement, addCharacter, addLocation, currentScript } = useScriptStore();
-  const [content, setContent] = useState(element.content);
-  const [metadata, setMetadata] = useState(element.metadata || {});
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+export function ScreenplayEditor({ screenplayId }: ScreenplayEditorProps) {
+  const [scenes, setScenes] = useState<Scene[]>([])
+  const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
+  const [newSceneHeading, setNewSceneHeading] = useState("")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const manager = ScreenplayManager.getInstance()
 
   useEffect(() => {
-    if (isActive && inputRef.current) {
-      inputRef.current.focus();
+    const screenplay = manager.setCurrentScreenplay(screenplayId)
+    if (screenplay) {
+      setScenes(screenplay.scenes)
+      if (screenplay.scenes.length > 0) {
+        setActiveSceneId(screenplay.scenes[0].id)
+      }
     }
-  }, [isActive]);
+  }, [screenplayId])
 
-  const handleContentChange = (value: string) => {
-    setContent(value);
-    updateElement(element.id, { content: value });
-  };
+  const addScene = () => {
+    if (!newSceneHeading.trim()) return
 
-  const handleMetadataChange = (key: string, value: any) => {
-    const updatedMetadata = { ...metadata, [key]: value };
-    setMetadata(updatedMetadata);
-    updateElement(element.id, { metadata: updatedMetadata });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      onNext();
-    }
-    
-    if (e.key === 'Enter' && element.type !== 'action') {
-      e.preventDefault();
-      onNext();
-    }
-  };
-
-  const renderSceneHeading = () => (
-    <div className="flex flex-wrap items-center gap-2 mb-2">
-      <Select 
-        value={metadata.intExt || 'INT.'} 
-        onValueChange={(value) => handleMetadataChange('intExt', value)}
-      >
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="INT.">INT.</SelectItem>
-          <SelectItem value="EXT.">EXT.</SelectItem>
-        </SelectContent>
-      </Select>
-      
-      <Input
-        ref={inputRef as React.RefObject<HTMLInputElement>}
-        placeholder="LOCATION"
-        value={metadata.location || ''}
-        onChange={(e) => {
-          const location = e.target.value.toUpperCase();
-          handleMetadataChange('location', location);
-          if (location) {
-            addLocation(location, metadata.intExt as 'INT.' | 'EXT.' || 'INT.');
-          }
-        }}
-        onKeyDown={handleKeyDown}
-        className="flex-1 font-mono text-sm uppercase"
-      />
-      
-      <span className="text-muted-foreground">-</span>
-      
-      <Select 
-        value={metadata.timeOfDay || 'DAY'} 
-        onValueChange={(value) => handleMetadataChange('timeOfDay', value)}
-      >
-        <SelectTrigger className="w-32">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="DAY">DAY</SelectItem>
-          <SelectItem value="NIGHT">NIGHT</SelectItem>
-          <SelectItem value="MORNING">MORNING</SelectItem>
-          <SelectItem value="EVENING">EVENING</SelectItem>
-          <SelectItem value="CONTINUOUS">CONTINUOUS</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
-  const renderCharacterName = () => (
-    <Input
-      ref={inputRef as React.RefObject<HTMLInputElement>}
-      placeholder="CHARACTER NAME"
-      value={content}
-      onChange={(e) => {
-        const charName = e.target.value.toUpperCase();
-        handleContentChange(charName);
-        if (charName) {
-          addCharacter(charName);
-        }
-      }}
-      onKeyDown={handleKeyDown}
-      className="w-64 font-mono text-sm uppercase font-bold text-center"
-    />
-  );
-
-  const renderDialogue = () => (
-    <Textarea
-      ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-      placeholder="Character dialogue..."
-      value={content}
-      onChange={(e) => handleContentChange(e.target.value)}
-      onKeyDown={handleKeyDown}
-      className="w-full max-w-md font-mono text-sm resize-none"
-      rows={3}
-    />
-  );
-
-  const renderAction = () => (
-    <Textarea
-      ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-      placeholder="Describe the action..."
-      value={content}
-      onChange={(e) => handleContentChange(e.target.value)}
-      onKeyDown={handleKeyDown}
-      className="w-full font-mono text-sm resize-none"
-      rows={2}
-    />
-  );
-
-  const getElementIcon = () => {
-    switch (element.type) {
-      case 'scene_heading': return <MapPin className="w-4 h-4" />;
-      case 'character': return <User className="w-4 h-4" />;
-      case 'dialogue': return <MessageSquare className="w-4 h-4" />;
-      case 'action': return <Film className="w-4 h-4" />;
-      default: return <Film className="w-4 h-4" />;
-    }
-  };
-
-  return (
-    <div className={cn(
-      "group relative p-4 rounded-lg transition-all duration-200",
-      isActive ? "bg-primary/5 ring-2 ring-primary/20" : "hover:bg-muted/30"
-    )}>
-      <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {getElementIcon()}
-          <span className="w-8 text-right">{index + 1}</span>
-        </div>
-        
-        <div className="flex-1">
-          {element.type === 'scene_heading' && renderSceneHeading()}
-          {element.type === 'character' && renderCharacterName()}
-          {element.type === 'dialogue' && renderDialogue()}
-          {element.type === 'action' && renderAction()}
-          {element.type === 'fade_in' && (
-            <div className="font-mono text-sm font-bold">FADE IN:</div>
-          )}
-        </div>
-      </div>
-      
-      {isActive && (
-        <div className="absolute -right-2 top-1/2 -translate-y-1/2 text-primary">
-          <ArrowRight className="w-4 h-4 animate-pulse" />
-        </div>
-      )}
-    </div>
-  );
-};
-
-export const ScreenplayEditor: React.FC = () => {
-  const { currentScript, addElement, currentElementIndex, setCurrentElementIndex } = useScriptStore();
-  const [showAddMenu, setShowAddMenu] = useState(false);
-
-  if (!currentScript) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
-        <div className="text-center">
-          <Film className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No script loaded</p>
-        </div>
-      </div>
-    );
+    const scene = manager.addScene(newSceneHeading)
+    setScenes([...scenes, scene])
+    setActiveSceneId(scene.id)
+    setNewSceneHeading("")
   }
 
-  const handleAddElement = (type: ElementType) => {
-    addElement({
-      type,
-      content: '',
-      metadata: type === 'scene_heading' ? { intExt: 'INT.', timeOfDay: 'DAY' } : undefined,
-    });
-    setCurrentElementIndex(currentScript.elements.length);
-    setShowAddMenu(false);
-    toast.success(`Added ${type.replace('_', ' ')} element`);
-  };
+  const updateSceneContent = (sceneId: string, content: string) => {
+    manager.updateScene(sceneId, content)
+    setScenes(scenes.map((s) => (s.id === sceneId ? { ...s, content } : s)))
+  }
 
-  const handleNext = () => {
-    if (currentElementIndex < currentScript.elements.length - 1) {
-      setCurrentElementIndex(currentElementIndex + 1);
+  const deleteScene = (sceneId: string) => {
+    manager.deleteScene(sceneId)
+    const updatedScenes = scenes.filter((s) => s.id !== sceneId)
+    setScenes(updatedScenes)
+
+    if (activeSceneId === sceneId) {
+      setActiveSceneId(updatedScenes.length > 0 ? updatedScenes[0].id : null)
     }
-  };
+  }
+
+  const activeScene = scenes.find((s) => s.id === activeSceneId)
+
+  const formatScreenplayText = (text: string) => {
+    return text
+      .split("\n")
+      .map((line, index) => {
+        const trimmed = line.trim()
+
+        // Scene headings (INT./EXT.)
+        if (trimmed.match(/^(INT\.|EXT\.|FADE IN:|FADE OUT:)/i)) {
+          return `<div key=${index} class="font-bold uppercase mb-4 mt-6">${trimmed}</div>`
+        }
+
+        // Character names (all caps, centered-ish)
+        if (trimmed.match(/^[A-Z][A-Z\s]+$/) && trimmed.length < 30) {
+          return `<div key=${index} class="font-bold uppercase text-center my-4">${trimmed}</div>`
+        }
+
+        // Parentheticals
+        if (trimmed.match(/^$$.+$$$/)) {
+          return `<div key=${index} class="text-center italic mb-2">${trimmed}</div>`
+        }
+
+        // Regular action/dialogue
+        return `<div key=${index} class="mb-2 leading-relaxed">${trimmed || "<br>"}</div>`
+      })
+      .join("")
+  }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Editor Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">{currentScript.title}</h2>
-          <span className="text-sm text-muted-foreground">by {currentScript.author}</span>
-        </div>
-        
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>~{currentScript.elements.length} min</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Keyboard className="w-4 h-4" />
-            <span>Tab to navigate</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Script Elements */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-1">
-          {currentScript.elements.map((element, index) => (
-            <ElementEditor
-              key={element.id}
-              element={element}
-              index={index}
-              isActive={index === currentElementIndex}
-              onNext={handleNext}
+    <div className="flex h-full">
+      {/* Scene Navigator */}
+      <div className="w-80 border-r bg-muted/30 p-4 overflow-y-auto">
+        <div className="mb-4">
+          <h3 className="font-semibold mb-2">Scenes</h3>
+          <div className="flex gap-2">
+            <Input
+              placeholder="EXT. LOCATION - DAY"
+              value={newSceneHeading}
+              onChange={(e) => setNewSceneHeading(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addScene()}
+              className="text-sm"
             />
+            <Button onClick={addScene} size="sm">
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {scenes.map((scene, index) => (
+            <div
+              key={scene.id}
+              className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                activeSceneId === scene.id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+              }`}
+              onClick={() => setActiveSceneId(scene.id)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 opacity-50" />
+                  <div>
+                    <div className="font-medium text-sm">Scene {index + 1}</div>
+                    <div className="text-xs opacity-70 truncate">{scene.sceneHeading}</div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteScene(scene.id)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Floating Add Button */}
-      <div className="fixed bottom-6 right-6">
-        <div className="relative">
-          {showAddMenu && (
-            <div className="absolute bottom-16 right-0 bg-background border rounded-lg shadow-lg p-2 space-y-1 min-w-48">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddElement('scene_heading')}
-                className="w-full justify-start"
-              >
-                <MapPin className="w-4 h-4 mr-2" />
-                Scene Heading
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddElement('action')}
-                className="w-full justify-start"
-              >
-                <Film className="w-4 h-4 mr-2" />
-                Action
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddElement('character')}
-                className="w-full justify-start"
-              >
-                <User className="w-4 h-4 mr-2" />
-                Character
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddElement('dialogue')}
-                className="w-full justify-start"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Dialogue
-              </Button>
+      {/* Editor */}
+      <div className="flex-1 p-6">
+        {activeScene ? (
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold">{activeScene.sceneHeading}</h2>
             </div>
-          )}
-          
-          <Button
-            size="lg"
-            onClick={() => setShowAddMenu(!showAddMenu)}
-            className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <Plus className={cn(
-              "w-6 h-6 transition-transform duration-200",
-              showAddMenu && "rotate-45"
-            )} />
-          </Button>
-        </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg border p-8 min-h-[600px] font-mono text-sm leading-relaxed">
+              <Textarea
+                ref={textareaRef}
+                value={activeScene.content}
+                onChange={(e) => updateSceneContent(activeScene.id, e.target.value)}
+                placeholder="Start writing your scene here...
+
+Example:
+FADE IN:
+
+EXT. ROAD - DAY (MORNING)
+
+A sunny morning, leaves are blowing across the road due to the hot wind.
+
+RICKSHAW DRIVER, a poor thin old man with a rickshaw not in a very good condition is pedaling the rickshaw as hard as he can."
+                className="w-full min-h-[500px] border-none resize-none focus:ring-0 font-mono text-sm leading-relaxed bg-transparent"
+                style={{
+                  fontFamily: "Courier New, monospace",
+                  lineHeight: "1.6",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-2">No Scene Selected</h3>
+              <p>Create a new scene or select an existing one to start writing.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
-};
+  )
+}
