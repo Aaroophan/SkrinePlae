@@ -66,6 +66,8 @@ export class ScreenplayStore {
     const screenplay: ScreenplayDocument = {
       id: scriptId,
       title,
+      author: "",
+      description: "",
       blocks: [initialBlock],
       createdAt: new Date(),
       lastModified: new Date(),

@@ -21,6 +21,8 @@ export interface ScreenplayBlock {
 export interface ScreenplayDocument {
   id: string
   title: string
+  author: string
+  description: string
   blocks: ScreenplayBlock[]
   createdAt: Date
   lastModified: Date

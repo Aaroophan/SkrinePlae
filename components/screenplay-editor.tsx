@@ -104,8 +104,15 @@ export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
           // Move cursor to end
           const range = document.createRange()
           const selection = window.getSelection()
-          range.selectNodeContents(prevBlockElement)
-          range.collapse(false)
+          if (prevBlockElement.childNodes.length > 0) {
+            range.setStart(
+              prevBlockElement.childNodes[prevBlockElement.childNodes.length - 1],
+              prevBlockElement.textContent?.length || 0,
+            )
+          } else {
+            range.setStart(prevBlockElement, 0)
+          }
+          range.collapse(true)
           selection?.removeAllRanges()
           selection?.addRange(range)
         }
@@ -139,7 +146,14 @@ export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
       <ScreenplayToolbar onFindReplace={() => setShowFindReplace(true)} />
 
       <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-4">
-        <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 shadow-xl min-h-full">
+        <div
+          className="mx-auto bg-white dark:bg-gray-900 shadow-xl min-h-full"
+          style={{
+            width: "210mm", // A4 width
+            minHeight: "297mm", // A4 height
+            maxWidth: "210mm",
+          }}
+        >
           <div ref={editorRef} className="p-16 min-h-full" style={{ fontFamily: "Courier New, monospace" }}>
             {blocks.map((block, index) => (
               <ScreenplayBlock

@@ -3,12 +3,13 @@ import { BlockType } from "@/types/screenplay"
 export function detectBlockType(content: string, currentType: BlockType): BlockType {
   const trimmedContent = content.trim().toUpperCase()
 
-  // Scene heading detection
+  // Scene heading detection - allow multiple scene headings
   if (
     trimmedContent.startsWith("INT.") ||
     trimmedContent.startsWith("EXT.") ||
     trimmedContent.startsWith("INTERIOR") ||
-    trimmedContent.startsWith("EXTERIOR")
+    trimmedContent.startsWith("EXTERIOR") ||
+    (trimmedContent.includes(" - ") && (trimmedContent.includes("INT.") || trimmedContent.includes("EXT.")))
   ) {
     return BlockType.SCENE_HEADING
   }
@@ -35,8 +36,9 @@ export function detectBlockType(content: string, currentType: BlockType): BlockT
     content === trimmedContent &&
     trimmedContent.length > 0 &&
     trimmedContent.length < 40 &&
-    !trimmedContent.includes(" ") &&
-    currentType !== BlockType.DIALOGUE
+    trimmedContent.split(" ").length <= 3 && // Allow up to 3 words for character names
+    currentType !== BlockType.DIALOGUE &&
+    !trimmedContent.includes(".")
   ) {
     return BlockType.CHARACTER
   }
@@ -69,11 +71,11 @@ export function getNextBlockType(currentType: BlockType, action: "enter" | "tab"
       case BlockType.ACTION:
         return BlockType.CHARACTER
       case BlockType.CHARACTER:
-        return BlockType.PARENTHETICAL
-      case BlockType.DIALOGUE:
-        return BlockType.CHARACTER
-      case BlockType.PARENTHETICAL:
         return BlockType.DIALOGUE
+      case BlockType.DIALOGUE:
+        return BlockType.PARENTHETICAL
+      case BlockType.PARENTHETICAL:
+        return BlockType.TRANSITION
       case BlockType.TRANSITION:
         return BlockType.SCENE_HEADING
       default:

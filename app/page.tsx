@@ -8,21 +8,28 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ScreenplayStore } from "@/lib/screenplay-store"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ScreenplayCreationDialog } from "@/components/screenplay-creation-dialog"
 
 export default function HomePage() {
   const [screenplays, setScreenplays] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [showCreationDialog, setShowCreationDialog] = useState(false)
 
   useEffect(() => {
     const store = ScreenplayStore.getInstance()
     setScreenplays(store.getAllScreenplays())
   }, [])
 
-  const createNewScreenplay = () => {
+  const handleCreateScreenplay = (title: string, author: string, description: string) => {
     const store = ScreenplayStore.getInstance()
-    const newScreenplay = store.createScreenplay("Untitled Screenplay")
+    const newScreenplay = store.createScreenplay(title)
+    store.updateScreenplay(newScreenplay.id, { author, description })
     setScreenplays(store.getAllScreenplays())
     window.location.href = `/script/${newScreenplay.id}`
+  }
+
+  const createNewScreenplay = () => {
+    setShowCreationDialog(true)
   }
 
   const filteredScreenplays = screenplays.filter((screenplay) =>
@@ -43,7 +50,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <Button onClick={createNewScreenplay} className="flex items-center gap-2">
+              <Button onClick={() => setShowCreationDialog(true)} className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 New Screenplay
               </Button>
@@ -90,10 +97,14 @@ export default function HomePage() {
                         <span>{screenplay.metadata.pageCount} pages</span>
                         <span>{screenplay.metadata.wordCount} words</span>
                       </div>
+                      {screenplay.author && (
+                        <div className="text-sm font-medium text-muted-foreground">by {screenplay.author}</div>
+                      )}
                       <div className="text-sm text-muted-foreground line-clamp-2">
-                        {screenplay.blocks.length > 0
-                          ? screenplay.blocks[0].content || "Empty screenplay"
-                          : "Empty screenplay"}
+                        {screenplay.description ||
+                          (screenplay.blocks.length > 0
+                            ? screenplay.blocks[0].content || "Empty screenplay"
+                            : "Empty screenplay")}
                       </div>
                     </div>
                   </CardContent>
@@ -124,6 +135,11 @@ export default function HomePage() {
               )}
             </div>
           )}
+          <ScreenplayCreationDialog
+            open={showCreationDialog}
+            onOpenChange={setShowCreationDialog}
+            onCreate={handleCreateScreenplay}
+          />
         </div>
       </div>
     </div>

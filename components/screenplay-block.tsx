@@ -16,7 +16,7 @@ interface ScreenplayBlockProps {
   onFocus: () => void
 }
 
-export function ScreenplayBlockComponent({
+function ScreenplayBlockComponent({
   block,
   isActive,
   onUpdate,
@@ -68,17 +68,17 @@ export function ScreenplayBlockComponent({
 
     switch (block.type) {
       case BlockType.SCENE_HEADING:
-        return cn(baseStyles, "font-bold uppercase text-left mb-4")
+        return cn(baseStyles, "font-bold uppercase mb-4")
       case BlockType.ACTION:
-        return cn(baseStyles, "text-left mb-4 max-w-full")
+        return cn(baseStyles, "mb-4 max-w-full")
       case BlockType.CHARACTER:
-        return cn(baseStyles, "font-bold uppercase text-center mb-1 max-w-md mx-auto")
+        return cn(baseStyles, "font-bold uppercase mb-1 max-w-md mx-auto")
       case BlockType.DIALOGUE:
-        return cn(baseStyles, "text-left mb-1 max-w-md mx-auto ml-24")
+        return cn(baseStyles, "mb-1 max-w-md mx-auto ml-24")
       case BlockType.PARENTHETICAL:
-        return cn(baseStyles, "italic text-left mb-1 max-w-sm mx-auto ml-32")
+        return cn(baseStyles, "italic mb-1 max-w-sm mx-auto ml-32")
       case BlockType.TRANSITION:
-        return cn(baseStyles, "font-bold uppercase text-right mb-4")
+        return cn(baseStyles, "font-bold uppercase mb-4")
       default:
         return baseStyles
     }
@@ -103,6 +103,17 @@ export function ScreenplayBlockComponent({
     }
   }
 
+  const getTextAlign = (): "left" | "center" | "right" => {
+    switch (block.type) {
+      case BlockType.CHARACTER:
+        return "center"
+      case BlockType.TRANSITION:
+        return "right"
+      default:
+        return "left"
+    }
+  }
+
   return (
     <div className="relative group">
       {/* Block type indicator */}
@@ -123,6 +134,9 @@ export function ScreenplayBlockComponent({
         style={{
           fontSize: "12pt",
           lineHeight: "1.5",
+          textAlign: getTextAlign(),
+          unicodeBidi: "plaintext",
+          writingMode: "horizontal-tb",
         }}
       >
         {content}
@@ -139,4 +153,5 @@ export function ScreenplayBlockComponent({
   )
 }
 
-export const ScreenplayBlock = ScreenplayBlockComponent
+export { ScreenplayBlockComponent as ScreenplayBlock }
+export default ScreenplayBlockComponent

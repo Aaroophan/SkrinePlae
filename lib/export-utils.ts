@@ -33,7 +33,13 @@ export async function exportToDoc(screenplay: ScreenplayDocument) {
 }
 
 function formatScreenplayForExport(screenplay: ScreenplayDocument): string {
-  let output = `${screenplay.title.toUpperCase()}\n\n`
+  let output = `${screenplay.title.toUpperCase()}\n`
+
+  if (screenplay.author) {
+    output += `by ${screenplay.author}\n`
+  }
+
+  output += `\n\n`
 
   screenplay.blocks.forEach((block) => {
     switch (block.type) {
