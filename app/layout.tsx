@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "SkrinePlae - Professional Screenwriting",
   description: "A modern, elegant screenplay editor for professional screenwriters",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -18,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" dir="ltr" suppressHydrationWarning>
+      <body className={inter.className} dir="ltr">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>

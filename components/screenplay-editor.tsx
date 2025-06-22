@@ -71,7 +71,7 @@ export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
 
       // Focus the new block after state update
       setTimeout(() => {
-        const newBlockElement = document.querySelector(`[data-block-id="${newBlock.id}"]`) as HTMLElement
+        const newBlockElement = document.querySelector(`[data-block-id="${newBlock.id}"]`) as HTMLTextAreaElement
         if (newBlockElement) {
           newBlockElement.focus()
         }
@@ -98,23 +98,11 @@ export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
       setCurrentBlockId(previousBlock.id)
 
       setTimeout(() => {
-        const prevBlockElement = document.querySelector(`[data-block-id="${previousBlock.id}"]`) as HTMLElement
+        const prevBlockElement = document.querySelector(`[data-block-id="${previousBlock.id}"]`) as HTMLTextAreaElement
         if (prevBlockElement) {
           prevBlockElement.focus()
           // Move cursor to end
-          const range = document.createRange()
-          const selection = window.getSelection()
-          if (prevBlockElement.childNodes.length > 0) {
-            range.setStart(
-              prevBlockElement.childNodes[prevBlockElement.childNodes.length - 1],
-              prevBlockElement.textContent?.length || 0,
-            )
-          } else {
-            range.setStart(prevBlockElement, 0)
-          }
-          range.collapse(true)
-          selection?.removeAllRanges()
-          selection?.addRange(range)
+          prevBlockElement.setSelectionRange(prevBlockElement.value.length, prevBlockElement.value.length)
         }
       }, 0)
     },
@@ -142,19 +130,27 @@ export function ScreenplayEditor({ screenplay }: ScreenplayEditorProps) {
   }, [handleKeyDown])
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen" dir="ltr">
       <ScreenplayToolbar onFindReplace={() => setShowFindReplace(true)} />
 
-      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-4">
+      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-4" dir="ltr">
         <div
-          className="mx-auto bg-white dark:bg-gray-900 shadow-xl min-h-full"
+          className="mx-auto bg-white dark:bg-gray-900 shadow-xl"
           style={{
             width: "210mm", // A4 width
             minHeight: "297mm", // A4 height
             maxWidth: "210mm",
           }}
+          dir="ltr"
         >
-          <div ref={editorRef} className="p-16 min-h-full" style={{ fontFamily: "Courier New, monospace" }}>
+          <div
+            ref={editorRef}
+            className="p-16 min-h-full"
+            style={{
+              fontFamily: "Courier New, monospace",
+            }}
+            dir="ltr"
+          >
             {blocks.map((block, index) => (
               <ScreenplayBlock
                 key={block.id}

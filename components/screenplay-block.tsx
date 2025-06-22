@@ -25,7 +25,7 @@ function ScreenplayBlockComponent({
   onBackspace,
   onFocus,
 }: ScreenplayBlockProps) {
-  const elementRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [content, setContent] = useState(block.content)
 
   useEffect(() => {
@@ -33,18 +33,26 @@ function ScreenplayBlockComponent({
   }, [block.content])
 
   useEffect(() => {
-    if (isActive && elementRef.current) {
-      elementRef.current.focus()
+    if (isActive && textareaRef.current) {
+      textareaRef.current.focus()
     }
   }, [isActive])
 
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    const newContent = e.currentTarget.textContent || ""
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [content])
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value
     setContent(newContent)
     onUpdate(block.id, newContent)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     switch (e.key) {
       case "Enter":
         e.preventDefault()
@@ -55,7 +63,7 @@ function ScreenplayBlockComponent({
         onTab(block.id, block.type)
         break
       case "Backspace":
-        if (content === "") {
+        if (content === "" && e.target.selectionStart === 0) {
           e.preventDefault()
           onBackspace(block.id, true)
         }
@@ -64,21 +72,22 @@ function ScreenplayBlockComponent({
   }
 
   const getBlockStyles = () => {
-    const baseStyles = "outline-none min-h-[1.5em] py-1 px-0 leading-relaxed"
+    const baseStyles =
+      "screenplay-block outline-none border-none bg-transparent resize-none overflow-hidden min-h-[1.5em] py-1 px-0 leading-relaxed w-full"
 
     switch (block.type) {
       case BlockType.SCENE_HEADING:
         return cn(baseStyles, "font-bold uppercase mb-4")
       case BlockType.ACTION:
-        return cn(baseStyles, "mb-4 max-w-full")
+        return cn(baseStyles, "mb-4")
       case BlockType.CHARACTER:
-        return cn(baseStyles, "font-bold uppercase mb-1 max-w-md mx-auto")
+        return cn(baseStyles, "font-bold uppercase mb-1 max-w-md mx-auto text-center")
       case BlockType.DIALOGUE:
         return cn(baseStyles, "mb-1 max-w-md mx-auto ml-24")
       case BlockType.PARENTHETICAL:
         return cn(baseStyles, "italic mb-1 max-w-sm mx-auto ml-32")
       case BlockType.TRANSITION:
-        return cn(baseStyles, "font-bold uppercase mb-4")
+        return cn(baseStyles, "font-bold uppercase mb-4 text-right")
       default:
         return baseStyles
     }
@@ -103,14 +112,18 @@ function ScreenplayBlockComponent({
     }
   }
 
-  const getTextAlign = (): "left" | "center" | "right" => {
+  const getContainerStyles = () => {
     switch (block.type) {
       case BlockType.CHARACTER:
-        return "center"
+        return "flex justify-center"
+      case BlockType.DIALOGUE:
+        return "ml-24 max-w-md"
+      case BlockType.PARENTHETICAL:
+        return "ml-32 max-w-sm"
       case BlockType.TRANSITION:
-        return "right"
+        return "flex justify-end"
       default:
-        return "left"
+        return "w-full"
     }
   }
 
@@ -121,34 +134,26 @@ function ScreenplayBlockComponent({
         <span className="text-xs text-muted-foreground uppercase tracking-wide">{block.type.replace("_", " ")}</span>
       </div>
 
-      <div
-        ref={elementRef}
-        data-block-id={block.id}
-        contentEditable
-        suppressContentEditableWarning
-        className={getBlockStyles()}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onFocus={onFocus}
-        data-placeholder={content === "" ? getPlaceholder() : ""}
-        style={{
-          fontSize: "12pt",
-          lineHeight: "1.5",
-          textAlign: getTextAlign(),
-          unicodeBidi: "plaintext",
-          writingMode: "horizontal-tb",
-        }}
-      >
-        {content}
+      <div className={getContainerStyles()}>
+        <textarea
+          ref={textareaRef}
+          data-block-id={block.id}
+          value={content}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          onFocus={onFocus}
+          placeholder={getPlaceholder()}
+          className={getBlockStyles()}
+          style={{
+            fontSize: "12pt",
+            lineHeight: "1.5",
+            fontFamily: "Courier New, monospace",
+            direction: "ltr",
+          }}
+          dir="ltr"
+          rows={1}
+        />
       </div>
-
-      <style jsx>{`
-        [contenteditable]:empty:before {
-          content: attr(data-placeholder);
-          color: #9ca3af;
-          pointer-events: none;
-        }
-      `}</style>
     </div>
   )
 }
