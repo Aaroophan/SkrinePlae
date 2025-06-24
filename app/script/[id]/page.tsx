@@ -5,7 +5,7 @@ import { ScreenplayStore } from "@/lib/screenplay-store"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download, FileText, File } from "lucide-react"
+import { ArrowLeft, Download, FileText, File, FileType } from "lucide-react"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { exportScreenplay } from "@/lib/export-utils"
@@ -49,9 +49,22 @@ export default function ScreenplayPage() {
 
       await exportScreenplay(latestScreenplay, format)
 
+      let message = ""
+      switch (format) {
+        case "doc":
+          message = "DOCX file exported with optimized page breaks"
+          break
+        case "pdf":
+          message = "PDF generated from DOCX structure for consistency"
+          break
+        case "txt":
+          message = "Text file exported with DOCX-compatible formatting"
+          break
+      }
+
       toast({
         title: "Export Successful",
-        description: `Screenplay exported as ${format.toUpperCase()} file.`,
+        description: message,
       })
     } catch (error) {
       console.error("Export error:", error)
@@ -103,6 +116,9 @@ export default function ScreenplayPage() {
                 </Button>
               </Link>
               <h1 className="text-lg font-medium truncate max-w-md">{screenplay.title}</h1>
+              <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded">
+                DOCX Optimized
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -114,17 +130,17 @@ export default function ScreenplayPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleExport("doc")}>
+                    <FileType className="w-4 h-4 mr-2" />
+                    Export as DOCX (Primary)
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport("pdf")}>
                     <File className="w-4 h-4 mr-2" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport("doc")}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Export as DOC
+                    Export as PDF (from DOCX)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport("txt")}>
                     <FileText className="w-4 h-4 mr-2" />
-                    Export as TXT
+                    Export as TXT (Fallback)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
