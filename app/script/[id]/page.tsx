@@ -5,15 +5,19 @@ import { ScreenplayStore } from "@/lib/screenplay-store"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download } from "lucide-react"
+import { ArrowLeft, Download, FileText, File } from "lucide-react"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { exportToPDF, exportToDoc } from "@/lib/export-utils"
+import { exportScreenplay } from "@/lib/export-utils"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ScreenplayPage() {
   const params = useParams()
   const [screenplay, setScreenplay] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     const store = ScreenplayStore.getInstance()
@@ -29,13 +33,35 @@ export default function ScreenplayPage() {
     setLoading(false)
   }, [params.id])
 
-  const handleExport = async (format: "pdf" | "doc") => {
+  const handleExport = async (format: "pdf" | "doc" | "txt") => {
     if (!screenplay) return
 
-    if (format === "pdf") {
-      await exportToPDF(screenplay)
-    } else {
-      await exportToDoc(screenplay)
+    setExporting(true)
+
+    try {
+      // Get the latest screenplay data
+      const store = ScreenplayStore.getInstance()
+      const latestScreenplay = store.getScreenplay(screenplay.id)
+
+      if (!latestScreenplay) {
+        throw new Error("Screenplay not found")
+      }
+
+      await exportScreenplay(latestScreenplay, format)
+
+      toast({
+        title: "Export Successful",
+        description: `Screenplay exported as ${format.toUpperCase()} file.`,
+      })
+    } catch (error) {
+      console.error("Export error:", error)
+      toast({
+        title: "Export Failed",
+        description: `Failed to export as ${format.toUpperCase()}. Please try again.`,
+        variant: "destructive",
+      })
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -80,14 +106,28 @@ export default function ScreenplayPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="hidden sm:flex">
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("doc")} className="hidden sm:flex">
-                <Download className="w-4 h-4 mr-2" />
-                Export DOC
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={exporting}>
+                    <Download className="w-4 h-4 mr-2" />
+                    {exporting ? "Exporting..." : "Export"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleExport("pdf")}>
+                    <File className="w-4 h-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("doc")}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Export as DOC
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("txt")}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Export as TXT
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <ThemeToggle />
             </div>
           </div>
